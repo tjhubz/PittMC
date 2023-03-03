@@ -1,10 +1,14 @@
+import os
 from mcrcon import MCRcon
 from flask import Flask,request,json,Response
 
+route = os.getenv("route")
+rcon_ip = os.getenv("rcon_ip")
+rcon_pass = os.getenv("rcon_pass")
 app = Flask(__name__)
-mcr = MCRcon("192.168.1.10", "S6cLQiq7Sy3egLCm")
+mcr = MCRcon(f'{rcon_ip}', f'{rcon_pass}')
 
-@app.route('/a447249891ggt352', methods=['POST'])
+@app.route(f'{route}', methods=['POST'])
 def return_response():
      print(request.json);
      data = request.json
