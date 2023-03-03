@@ -1,16 +1,18 @@
 from mcrcon import MCRcon
 from flask import Flask,request,json,Response
 
-user = "Teejers"
 app = Flask(__name__)
+mcr = MCRcon("192.168.1.10", "S6cLQiq7Sy3egLCm")
 
-@app.route('/my_webhook', methods=['POST'])
+@app.route('/a447249891ggt352', methods=['POST'])
 def return_response():
-    print(request.json);
-#    with MCRcon("192.168.1.10", "minecraft") as mcr:
-#         resp = mcr.command("say "+user)
-#         print(resp)
-    return Response(status=200)
+     print(request.json);
+     data = request.json
+     mcr.connect()
+     resp = mcr.command(f'whitelist add {data["username"]}')
+     print(resp)
+     mcr.disconnect()
+     return Response(response=f'{resp}.',status=200)
 
 
 if __name__ == "__main__": 
