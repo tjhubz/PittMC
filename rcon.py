@@ -4,6 +4,10 @@ from flask import Flask,request,json,Response
 app = Flask(__name__)
 mcr = MCRcon("192.168.1.10", "S6cLQiq7Sy3egLCm")
 
+@app.route('/')
+def return_response():
+     return Response(response=f'hello.',status=200)
+
 @app.route('/a447249891ggt352', methods=['POST'])
 def return_response():
      print(request.json);
