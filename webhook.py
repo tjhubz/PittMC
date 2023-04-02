@@ -19,23 +19,26 @@ def verify_password(username, password):
         return username
     return None
 
+@app.route("/", methods=['GET'])
+def default_route():
+    return jsonify({"error": "You must be lost!"}), 404
+
 @app.route(route, methods=['POST'])
 @auth.login_required
 def return_response():
     data = request.get_json()
 
-    if data is None or "username" not in data:
-        return jsonify({"error": "Invalid JSON or missing 'username' field."}), 400
+    if data is None or "username" not in data or "type" not in data:
+        return jsonify({"error": "Invalid JSON or missing 'username' or 'type' field."}), 400
 
-    game_type = request.headers.get("type")
-
+    game_type = data["type"]
     if game_type not in ["java", "bedrock"]:
-        return jsonify({"error": "Invalid game type"}), 400
+        return jsonify({"error": "Invalid game type."}), 400
 
     username = data["username"]
 
     if game_type == "bedrock":
-        username = f".{username.replace(' ', '_')}"
+        username = "." + username.replace(" ", "_")
 
     try:
         with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
