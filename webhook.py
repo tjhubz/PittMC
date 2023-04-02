@@ -1,14 +1,27 @@
 import os
 from rcon import Client
 from flask import Flask, request, jsonify
+from flask_httpauth import HTTPBasicAuth
 
 route = os.getenv("route", "/default_route")
 rcon_ip = os.getenv("rcon_ip")
-rcon_port = int(os.getenv("rcon_port", 25575))  # Make sure to set the RCON port as an environment variable
+rcon_port = int(os.getenv("rcon_port", 25575))
 rcon_pass = os.getenv("rcon_pass")
 app = Flask(__name__)
+auth = HTTPBasicAuth()
+
+# Set the username and password for basic authentication as environment variables
+auth_username = os.getenv("AUTH_USERNAME")
+auth_password = os.getenv("AUTH_PASSWORD")
+
+@auth.verify_password
+def verify_password(username, password):
+    if username == auth_username and password == auth_password:
+        return username
+    return None
 
 @app.route(route, methods=['POST'])
+@auth.login_required
 def return_response():
     data = request.get_json()
 
