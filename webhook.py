@@ -1,23 +1,29 @@
 import os
 from mcrcon import MCRcon
-from flask import Flask,request,json,Response
+from flask import Flask, request, jsonify
 
 route = os.getenv("route")
 rcon_ip = os.getenv("rcon_ip")
 rcon_pass = os.getenv("rcon_pass")
 app = Flask(__name__)
-mcr = MCRcon(f'{rcon_ip}', f'{rcon_pass}')
+mcr = MCRcon(rcon_ip, rcon_pass)
 
-@app.route(f'{route}', methods=['POST'])
+@app.route(route, methods=['POST'])
 def return_response():
-     print(request.json);
-     data = request.json
-     mcr.connect()
-     resp = mcr.command(f'whitelist add {data["username"]}')
-     print(resp)
-     mcr.disconnect()
-     return Response(response=f'{resp}.',status=200)
+    data = request.get_json()
 
+    if data is None or "username" not in data:
+        return jsonify({"error": "Invalid JSON or missing 'username' field."}), 400
+
+    username = data["username"]
+
+    try:
+        with MCRcon(rcon_ip, rcon_pass) as mcr:
+            resp = mcr.command(f'whitelist add {username}')
+            return jsonify({"response": resp}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": "An error occurred while processing the request."}), 500
 
 if __name__ == "__main__": 
-     app.run(debug=True,host="0.0.0.0")
+    app.run(debug=True, host="0.0.0.0")
