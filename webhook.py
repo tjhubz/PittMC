@@ -1,9 +1,10 @@
 import os
-from mcrcon import MCRcon
+from rcon import Client
 from flask import Flask, request, jsonify
 
-route = os.getenv("route")
+route = os.getenv("route", "/default_route")
 rcon_ip = os.getenv("rcon_ip")
+rcon_port = int(os.getenv("rcon_port", 25575))  # Make sure to set the RCON port as an environment variable
 rcon_pass = os.getenv("rcon_pass")
 app = Flask(__name__)
 
@@ -17,12 +18,12 @@ def return_response():
     username = data["username"]
 
     try:
-        with MCRcon(rcon_ip, rcon_pass) as mcr:
-            resp = mcr.command(f'whitelist add {username}')
+        with Client(rcon_ip, rcon_port, rcon_pass) as client:
+            resp = client.run(f'whitelist add {username}')
             if "already whitelisted" in resp:
                 return jsonify({"response": resp, "status": "Already Whitelisted"}), 200
             elif "Added" in resp:
-                return jsonify({"response": resp, "status": "Successfully Whitelisted"}), 200
+                return jsonify({"response": resp, "status": "Whitelisted"}), 200
             else:
                 return jsonify({"error": "An unexpected response was received.", "response": resp}), 500
     except Exception as e:
