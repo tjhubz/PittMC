@@ -27,14 +27,14 @@ def return_response():
     if data is None or "username" not in data:
         return jsonify({"error": "Invalid JSON or missing 'username' field."}), 400
 
-    game_type = request.headers.get("Type")
+    game_type = request.headers.get("type")
 
-    if game_type not in ["Java", "Bedrock"]:
+    if game_type not in ["java", "bedrock"]:
         return jsonify({"error": "Invalid game type"}), 400
 
     username = data["username"]
 
-    if game_type == "Bedrock":
+    if game_type == "bedrock":
         username = f".{username.replace(' ', '_')}"
 
     try:
