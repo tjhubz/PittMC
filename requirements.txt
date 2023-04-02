@@ -1,2 +1,3 @@
 rcon==2.3.9
 Flask==2.2.2
+flask_httpauth==4.7.0

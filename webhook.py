@@ -1,21 +1,44 @@
 import os
 from rcon import Client
 from flask import Flask, request, jsonify
+from flask_httpauth import HTTPBasicAuth
 
 route = os.getenv("route", "/default_route")
 rcon_ip = os.getenv("rcon_ip")
-rcon_port = int(os.getenv("rcon_port", 25575))  # Make sure to set the RCON port as an environment variable
+rcon_port = int(os.getenv("rcon_port", 25575))
 rcon_pass = os.getenv("rcon_pass")
 app = Flask(__name__)
+auth = HTTPBasicAuth()
+
+auth_username = os.getenv("AUTH_USERNAME")
+auth_password = os.getenv("AUTH_PASSWORD")
+
+@auth.verify_password
+def verify_password(username, password):
+    if username == auth_username and password == auth_password:
+        return username
+    return None
+
+@app.route("/", methods=['GET'])
+def default_route():
+    return jsonify({"error": "You must be lost!"}), 404
 
 @app.route(route, methods=['POST'])
+@auth.login_required
 def return_response():
     data = request.get_json()
 
-    if data is None or "username" not in data:
-        return jsonify({"error": "Invalid JSON or missing 'username' field."}), 400
+    if data is None or "username" not in data or "type" not in data:
+        return jsonify({"error": "Invalid JSON or missing 'username' or 'type' field."}), 400
+
+    game_type = data["type"]
+    if game_type not in ["java", "bedrock"]:
+        return jsonify({"error": "Invalid game type."}), 400
 
     username = data["username"]
+
+    if game_type == "bedrock":
+        username = "." + username.replace(" ", "_")
 
     try:
         with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
