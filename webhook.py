@@ -10,7 +10,6 @@ rcon_pass = os.getenv("rcon_pass")
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 
-# Set the username and password for basic authentication as environment variables
 auth_username = os.getenv("AUTH_USERNAME")
 auth_password = os.getenv("AUTH_PASSWORD")
 
@@ -28,7 +27,15 @@ def return_response():
     if data is None or "username" not in data:
         return jsonify({"error": "Invalid JSON or missing 'username' field."}), 400
 
+    game_type = request.headers.get("Type")
+
+    if game_type not in ["Java", "Bedrock"]:
+        return jsonify({"error": "Invalid game type"}), 400
+
     username = data["username"]
+
+    if game_type == "Bedrock":
+        username = f".{username.replace(' ', '_')}"
 
     try:
         with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
