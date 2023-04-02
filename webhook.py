@@ -18,7 +18,7 @@ def return_response():
     username = data["username"]
 
     try:
-        with Client(rcon_ip, rcon_port, password=rcon_pass) as client:
+        with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
             resp = client.run(f'whitelist add {username}')
             if "already whitelisted" in resp:
                 return jsonify({"response": resp, "status": "Already Whitelisted"}), 200
