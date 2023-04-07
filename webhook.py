@@ -21,7 +21,7 @@ def verify_password(username, password):
 
 @app.route("/", methods=['GET'])
 def default_route():
-    return jsonify({"error": "You must be lost!"}), 404
+    return jsonify({"status": "error", "response": "You must be lost!"}), 404
 
 @app.route(route, methods=['POST'])
 @auth.login_required
@@ -29,11 +29,11 @@ def return_response():
     data = request.get_json()
 
     if data is None or "username" not in data or "type" not in data:
-        return jsonify({"error": "Invalid JSON or missing 'username' or 'type' field."}), 400
+        return jsonify({"status": "error", "response": "Invalid JSON or missing 'username' or 'type' field."}), 400
 
     game_type = data["type"]
     if game_type not in ["java", "bedrock"]:
-        return jsonify({"error": "Invalid game type."}), 400
+        return jsonify({"status": "error", "response": "Invalid game type."}), 400
 
     username = data["username"]
 
@@ -44,14 +44,22 @@ def return_response():
         with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
             resp = client.run(f'whitelist add {username}')
             if "already whitelisted" in resp:
-                return jsonify({"response": resp, "status": "Already Whitelisted"}), 200
+                status_msg = "Already Whitelisted"
+                status_code = 200
             elif "Added" in resp:
-                return jsonify({"response": resp, "status": "Whitelisted"}), 200
+                status_msg = "Whitelisted"
+                status_code = 200
+            elif "does not exist" in resp:
+                status_msg = "Player Not Found"
+                status_code = 400
             else:
-                return jsonify({"error": "An unexpected response was received.", "response": resp}), 500
+                status_msg = "error"
+                status_code = 500
+            print(f"Status: {status_msg}")
+            return jsonify({"response": resp, "status": status_msg}), status_code
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"error": "An error occurred while processing the request."}), 500
+        return jsonify({"status": "error", "response": "An unknown error occurred while processing the request."}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
