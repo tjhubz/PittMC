@@ -55,8 +55,8 @@ def return_response():
             else:
                 status_msg = "error"
                 status_code = 500
-            print(f"Status: {status_msg}")
-            return jsonify({"response": resp, "status": status_msg}), status_code
+            print(f"Result: {status_msg}")
+            return jsonify({"status": status_msg, "response": resp}), status_code
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"status": "error", "response": "An unknown error occurred while processing the request."}), 500
