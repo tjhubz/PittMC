@@ -44,13 +44,13 @@ def return_response():
         with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
             resp = client.run(f'whitelist add {username}')
             if "already whitelisted" in resp:
-                status_msg = "Already Whitelisted"
+                status_msg = "warning"
                 status_code = 200
             elif "Added" in resp:
-                status_msg = "Whitelisted"
+                status_msg = "success"
                 status_code = 200
             elif "does not exist" in resp:
-                status_msg = "Player Not Found"
+                status_msg = "failed"
                 status_code = 400
             else:
                 status_msg = "error"
