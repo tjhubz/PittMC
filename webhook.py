@@ -51,7 +51,7 @@ def return_response():
                 status_code = 200
             elif "does not exist" in resp:
                 status_msg = "failed"
-                status_code = 400
+                status_code = 200
             else:
                 status_msg = "error"
                 status_code = 500
