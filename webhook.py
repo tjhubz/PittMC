@@ -1,4 +1,5 @@
 import os
+import traceback
 from rcon.source import Client
 from flask import Flask, request, jsonify
 from flask_httpauth import HTTPBasicAuth
@@ -27,6 +28,7 @@ def default_route():
 @auth.login_required
 def return_response():
     data = request.get_json()
+    print(f"Received request: {data}")
 
     if data is None or "username" not in data or "type" not in data:
         return jsonify({"status": "error", "response": "Invalid JSON or missing 'username' or 'type' field."}), 400
@@ -59,7 +61,8 @@ def return_response():
             return jsonify({"status": status_msg, "response": resp}), status_code
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"status": "error", "response": "An unknown error occurred while processing the request."}), 500
+        traceback.print_exc()
+        return jsonify({"status": "error", "response": "An unknown error occurred while processing the request. We will manually whitelist you shortly."}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
