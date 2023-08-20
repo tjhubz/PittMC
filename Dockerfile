@@ -1,5 +1,5 @@
 # ---- Base ----
-FROM python:3.10-slim-buster AS base
+FROM python:3.11-slim-buster AS base
 COPY webhook.py /PittMC/webhook.py
 WORKDIR /PittMC
 
