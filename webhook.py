@@ -40,11 +40,14 @@ def return_response():
     username = data["username"]
 
     if game_type == "bedrock":
-        username = "." + username.replace(" ", "_")
+        username = username.replace(" ", "_")
 
     try:
         with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
-            resp = client.run(f'whitelist add {username}')
+            if game_type == "java":
+                resp = client.run(f'whitelist add {username}')
+            if game_type == "bedrock":
+                resp = client.run(f'fwhitelist add {username}')
             if "already whitelisted" in resp:
                 status_msg = "warning"
                 status_code = 200
