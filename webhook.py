@@ -48,6 +48,8 @@ def return_response():
                 resp = client.run(f'whitelist add {username}')
             if game_type == "bedrock":
                 resp = client.run(f'fwhitelist add {username}')
+            resp = resp.lower()
+            print(f"Response: {resp}")
             if "already whitelisted" in resp:
                 status_msg = "warning"
                 status_code = 200
@@ -60,7 +62,7 @@ def return_response():
             else:
                 status_msg = "error"
                 status_code = 500
-            print(f"Result: {status_msg}")
+            print(f"Result: {status_msg} {resp}")
             return jsonify({"status": status_msg, "response": resp}), status_code
     except Exception as e:
         print(f"Error: {e}")
