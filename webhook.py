@@ -59,6 +59,10 @@ def return_response():
             elif "does not exist" in resp:
                 status_msg = "failed"
                 status_code = 200
+            elif resp == "" and game_type == "bedrock":
+                status_msg = "warning"
+                resp = "Bedrock whitelist requests cannot be verified, but your request was processed. Please try joining the server."
+                status_code = 200
             else:
                 status_msg = "error"
                 status_code = 500
