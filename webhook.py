@@ -38,9 +38,7 @@ rcon_lock = asyncio.Lock()
 
 async def get_rcon_client():
     global rcon_client
-    if rcon_client is None or not rcon_client.connected:
-        if rcon_client:
-            await rcon_client.close()
+    if rcon_client is None:
         rcon_client = Client(rcon_ip, rcon_port, rcon_pass)
         await rcon_client.connect()
     return rcon_client
