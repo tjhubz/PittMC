@@ -38,33 +38,44 @@ rcon_lock = asyncio.Lock()
 
 async def get_rcon_client():
     global rcon_client
-    if rcon_client is None:
+    if rcon_client is None or not rcon_client.connected:
+        if rcon_client:
+            await rcon_client.close()
         rcon_client = Client(rcon_ip, rcon_port, rcon_pass)
         await rcon_client.connect()
     return rcon_client
 
-# RCON command execution
-async def run_rcon_command(command: str):
-    async with rcon_lock:
-        client = await get_rcon_client()
+async def reset_rcon_client():
+    global rcon_client
+    if rcon_client:
+        await rcon_client.close()
+    rcon_client = None
+
+# RCON command execution with retry
+async def run_rcon_command(command: str, max_retries=3):
+    for attempt in range(max_retries):
         try:
-            resp = await client.send_cmd(command)
-            print(f"RCON command executed: {command}")
-            print(f"Full RCON response: {resp}")
-            
-            # Handle different response types
-            if isinstance(resp, tuple):
-                return str(resp[0]).lower()  # Return the message part
-            elif isinstance(resp, str):
-                return resp.lower()
-            elif isinstance(resp, int):
-                return str(resp)
-            else:
-                print(f"Unexpected response type: {type(resp)}")
-                return str(resp)
+            async with rcon_lock:
+                client = await get_rcon_client()
+                resp = await client.send_cmd(command)
+                print(f"RCON command executed: {command}")
+                print(f"Full RCON response: {resp}")
+                
+                if isinstance(resp, tuple):
+                    return str(resp[0]).lower()
+                elif isinstance(resp, str):
+                    return resp.lower()
+                elif isinstance(resp, int):
+                    return str(resp)
+                else:
+                    print(f"Unexpected response type: {type(resp)}")
+                    return str(resp)
         except Exception as e:
-            print(f"Failed to execute RCON command: {e}")
-            raise HTTPException(status_code=500, detail="Failed to execute game server command")
+            print(f"Failed to execute RCON command (attempt {attempt + 1}): {e}")
+            await reset_rcon_client()
+            if attempt == max_retries - 1:
+                raise HTTPException(status_code=500, detail="Failed to execute game server command")
+            await asyncio.sleep(1)  # Wait before retrying
 
 # Java whitelist process
 async def process_java_whitelist(username: str):
