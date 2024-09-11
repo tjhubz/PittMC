@@ -1,77 +1,129 @@
 import os
 import traceback
-from rcon.source import Client
-from flask import Flask, request, jsonify
-from flask_httpauth import HTTPBasicAuth
+import asyncio
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from aiomcrcon import Client
+import uvicorn
+from typing import Literal
 
+# Environment variables
 route = os.getenv("route", "/default_route")
-rcon_ip = os.getenv("rcon_ip")
+rcon_ip = os.getenv("rcon_ip", "localhost")
 rcon_port = int(os.getenv("rcon_port", 25575))
-rcon_pass = os.getenv("rcon_pass")
-app = Flask(__name__)
-auth = HTTPBasicAuth()
-
+rcon_pass = os.getenv("rcon_pass", "")
 auth_username = os.getenv("AUTH_USERNAME")
 auth_password = os.getenv("AUTH_PASSWORD")
 
-@auth.verify_password
-def verify_password(username, password):
-    if username == auth_username and password == auth_password:
-        return username
-    return None
+# FastAPI setup
+app = FastAPI()
+security = HTTPBasic()
 
-@app.route("/", methods=['GET'])
-def default_route():
-    return jsonify({"status": "error", "response": "You must be lost!"}), 404
+# Pydantic model for request validation
+class WhitelistRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=16)
+    type: Literal["java", "bedrock"]
 
-@app.route(route, methods=['POST'])
-@auth.login_required
-def return_response():
-    data = request.get_json()
-    print(f"Received request: {data}")
+# Authentication
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    if credentials.username == auth_username and credentials.password == auth_password:
+        return credentials.username
+    raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if data is None or "username" not in data or "type" not in data:
-        return jsonify({"status": "error", "response": "Invalid JSON or missing 'username' or 'type' field."}), 400
+# Global RCON client
+rcon_client = None
+rcon_lock = asyncio.Lock()
 
-    game_type = data["type"]
-    if game_type not in ["java", "bedrock"]:
-        return jsonify({"status": "error", "response": "Invalid game type."}), 400
+async def get_rcon_client():
+    global rcon_client
+    if rcon_client is None:
+        rcon_client = Client(rcon_ip, rcon_port, rcon_pass)
+        await rcon_client.connect()
+    return rcon_client
 
-    username = data["username"]
+async def reset_rcon_client():
+    global rcon_client
+    if rcon_client:
+        await rcon_client.close()
+    rcon_client = None
 
-    if game_type == "bedrock":
-        username = username.replace(" ", "_")
+# RCON command execution with retry
+async def run_rcon_command(command: str, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            async with rcon_lock:
+                client = await get_rcon_client()
+                resp = await client.send_cmd(command)
+                print(f"RCON command executed: {command}")
+                print(f"Full RCON response: {resp}")
+                
+                if isinstance(resp, tuple):
+                    return str(resp[0]).lower()
+                elif isinstance(resp, str):
+                    return resp.lower()
+                elif isinstance(resp, int):
+                    return str(resp)
+                else:
+                    print(f"Unexpected response type: {type(resp)}")
+                    return str(resp)
+        except Exception as e:
+            print(f"Failed to execute RCON command (attempt {attempt + 1}): {e}")
+            await reset_rcon_client()
+            if attempt == max_retries - 1:
+                raise HTTPException(status_code=500, detail="Failed to execute game server command")
+            await asyncio.sleep(1)  # Wait before retrying
+
+# Java whitelist process
+async def process_java_whitelist(username: str):
+    commands = [
+        f'ban {username} Temporary - whitelist in progress',
+        f'pardon {username}',
+        f'whitelist add {username}'
+    ]
+    resp = ""
+    for cmd in commands:
+        resp = await run_rcon_command(cmd)
+        await asyncio.sleep(1)
+    return resp
+
+# Routes
+@app.get("/")
+async def default_route():
+    return JSONResponse({"status": "error", "response": "You must be lost!"}, status_code=404)
+
+@app.post(route)
+async def return_response(request: WhitelistRequest, auth_user: str = Depends(verify_credentials)):
+    print(f"Received request: {request}")
+
+    username = request.username.replace(" ", "_") if request.type == "bedrock" else request.username
 
     try:
-        with Client(rcon_ip, rcon_port, passwd=rcon_pass) as client:
-            if game_type == "java":
-                resp = client.run(f'whitelist add {username}')
-            if game_type == "bedrock":
-                resp = client.run(f'fwhitelist add {username}')
-            resp = resp.lower()
-            print(f"Response: {resp}")
-            if "already whitelisted" in resp:
-                status_msg = "warning"
-                status_code = 200
-            elif "Added" in resp:
-                status_msg = "success"
-                status_code = 200
-            elif "does not exist" in resp:
-                status_msg = "failed"
-                status_code = 200
-            elif resp == "" and game_type == "bedrock":
-                status_msg = "warning"
-                resp = "Bedrock whitelist requests cannot be verified, but your request was processed. Please try joining the server."
-                status_code = 200
-            else:
-                status_msg = "error"
-                status_code = 500
-            print(f"Result: {status_msg} {resp}")
-            return jsonify({"status": status_msg, "response": resp}), status_code
+        if request.type == "java":
+            resp = await process_java_whitelist(username)
+        else:
+            resp = await run_rcon_command(f'fwhitelist add {username}')
+
+        print(f"Final Response: {resp}")
+
+        if "already whitelisted" in resp:
+            return JSONResponse({"status": "warning", "response": resp}, status_code=200)
+        elif "added" in resp:
+            return JSONResponse({"status": "success", "response": resp}, status_code=200)
+        elif "does not exist" in resp:
+            return JSONResponse({"status": "failed", "response": "Player does not exist. Please reply to this email so we can manually whitelist you."}, status_code=200)
+        elif resp == "" and request.type == "bedrock":
+            return JSONResponse({"status": "warning", "response": "Bedrock whitelist requests cannot be verified, but your request was processed. Please try joining the server. If it doesn't work, please reply to this email so we can manually whitelist you."}, status_code=200)
+        else:
+            return JSONResponse({"status": "success", "response": f"Whitelist process completed: {resp}"}, status_code=200)
+
+    except HTTPException as he:
+        return JSONResponse({"status": "error", "response": he.detail}, status_code=he.status_code)
     except Exception as e:
         print(f"Error: {e}")
         traceback.print_exc()
-        return jsonify({"status": "error", "response": "An unknown error occurred while processing the request. We will manually whitelist you shortly."}), 500
+        return JSONResponse({"status": "error", "response": "An unknown error occurred while processing the request. We will manually whitelist you shortly."}, status_code=500)
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0")
+    uvicorn.run("webhook:app", host="0.0.0.0", port=8000)

@@ -1,3 +1,4 @@
-rcon==2.4.2
-Flask==2.3.2
-flask_httpauth==4.8.0
+fastapi==0.95.2
+uvicorn==0.22.0
+pydantic==1.10.7
+aio-mc-rcon==3.2.2
