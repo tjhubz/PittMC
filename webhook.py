@@ -77,6 +77,18 @@ async def run_rcon_command(command: str, max_retries=3):
 
 # Java whitelist process
 async def process_java_whitelist(username: str):
+    # Try adding to whitelist directly first
+    initial_cmd = f'whitelist add {username}'
+    initial_resp = await run_rcon_command(initial_cmd)
+    await asyncio.sleep(1) # Give server a moment to process
+
+    # If player added or already whitelisted, return
+    if "added" in initial_resp or "already whitelisted" in initial_resp:
+        return initial_resp
+    
+    # If the initial whitelist add failed (e.g. player not found because they're not in usercache.json)
+    # then proceed with the ban/pardon workaround
+    print(f"Initial whitelist add for {username} failed or did not confirm addition ('{initial_resp}'), attempting ban/pardon workaround.")
     commands = [
         f'ban {username} Temporary - whitelist in progress',
         f'pardon {username}',
